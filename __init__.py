@@ -42,6 +42,7 @@ _failed: dict = {}
 
 _try_register("nodes.comfy_native", _failed)
 _try_register("nodes.sheetsage_universal", _failed)
+_try_register("nodes.audio_save", _failed)
 _try_register("nodes.yue2_lora", _failed)
 _try_register("nodes.yue2", _failed)
 _try_register("nodes.yue2_advanced", _failed)

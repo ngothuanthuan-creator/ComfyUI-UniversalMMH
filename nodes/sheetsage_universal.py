@@ -20,6 +20,7 @@ from ..models.paths import model_dirs
 _NATIVE_KEYS = {"encoder.feature_extractor.mel_mean", "decoder.layernorm_embedding.weight", "layer_weight"}
 _MERGED_KEYS = {"encoder.frontend.mel_mean", "decoder.token_embedding.weight", "layer_weights"}
 _SKIP_DIRS = {".cache", ".git", "__pycache__"}
+_AUTO_REFINED = "Auto-download | SheetSage2-Refined"
 
 
 def _roots():
@@ -235,7 +236,8 @@ class YuE2UniversalPipelineLoader(YuE2NativePipelineLoader):
         "Replacement for YuE2 Native Pipeline Loader. Select Native single-file, "
         "merged SheetSage2, HF + local MERT2, or a complete SheetSage2-Refined folder. "
         "Refined loads its configured decoder and heads together. Keeps all native YuE2 ports. "
-        "Uses local models only. HF/Refined models load for transcription and are then released."
+        "Choose Auto-download | SheetSage2-Refined to download missing Refined weights on execution. "
+        "Other choices use local models. HF/Refined models load for transcription and are then released."
     )
     CATEGORY = "YuE2/Universal SheetSage2"
 
@@ -243,7 +245,7 @@ class YuE2UniversalPipelineLoader(YuE2NativePipelineLoader):
     def INPUT_TYPES(cls):
         inputs = _loader_inputs()
         models = _models()
-        options = ["none", *models]
+        options = ["none", _AUTO_REFINED, *models]
         checkpoint_input = inputs["required"]["checkpoint"]
         checkpoint_input[1]["default"] = next(
             (name for name in checkpoint_input[0] if Path(name).name == "yue2_3b_int8_convrot.safetensors"),
@@ -253,7 +255,7 @@ class YuE2UniversalPipelineLoader(YuE2NativePipelineLoader):
                         if kind == "native" and path.name == "sheetsage2_bf16.safetensors"), "none")
         inputs["required"]["audio_encoder"] = (options, {
             "default": default,
-            "tooltip": "Choose a complete SheetSage2 model or Refined folder; decoder/head components are grouped automatically.",
+            "tooltip": "Choose a local model, or Auto-download | SheetSage2-Refined to fetch missing files when you run the workflow (about 3 GB for a new install).",
         })
         inputs["optional"]["sheetsage_device"] = (["auto", "cuda", "cpu"], {
             "default": "auto", "tooltip": "Device for HF/Refined transcription. Native models use ComfyUI memory management.",
@@ -272,10 +274,20 @@ class YuE2UniversalPipelineLoader(YuE2NativePipelineLoader):
         encoder = None
         path = None
         if audio_encoder != "none":
-            models = _models()
-            if audio_encoder not in models:
-                raise ValueError("Selected SheetSage2 model is unavailable. Refresh and select a complete model or Refined folder.")
-            kind, path, root = models[audio_encoder]
+            if audio_encoder == _AUTO_REFINED:
+                from ..models.sheetsage_download import download_refined_model
+
+                root = Path(folder_paths.get_folder_paths("audio_encoders")[0]).resolve()
+                path = root / "SheetSage2-Refined"
+                if not _inside(path, root):
+                    raise ValueError("Refined download folder is outside the registered audio_encoders folder.")
+                path = download_refined_model(path)
+                kind = "refined"
+            else:
+                models = _models()
+                if audio_encoder not in models:
+                    raise ValueError("Selected SheetSage2 model is unavailable. Refresh and select a complete model or Refined folder.")
+                kind, path, root = models[audio_encoder]
             if kind == "native":
                 state = comfy.utils.load_torch_file(str(path), safe_load=True)
                 encoder = comfy.audio_encoders.audio_encoders.load_audio_encoder_from_sd(state)

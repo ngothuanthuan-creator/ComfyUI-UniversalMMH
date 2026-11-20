@@ -1,10 +1,9 @@
-# Native ComfyUI mode has no additional Python dependencies.
-#
-# YuE2 and SheetSage2 are loaded through ComfyUI's built-in checkpoint and
-# audio-encoder implementations. Do not pip-install yue2_infer.
-#
-# Only users intentionally keeping an old isolated-HF workflow need:
-#   python -m pip install -r requirements-legacy.txt
-#
-# Universal loader with Refined or merged SheetSage2 models optionally needs:
+# Native YuE2 reuses ComfyUI's existing ML dependencies.
+# Mutagen provides metadata cleanup for Save Audio + Player.
+-r requirements-audio.txt
+
+# Optional Refined/merged SheetSage2 runtime:
 #   python -m pip install -r requirements-sheetsage2-refined.txt
+# Optional legacy Hugging Face runtime:
+#   python -m pip install -r requirements-legacy.txt
+# Never pip-install the upstream yue2_infer wheel.

@@ -1,15 +1,3 @@
-ComfyUI Yue 2 Music Node (Enhanced ABC Recognition)
-
-A custom ComfyUI node designed to integrate the Yue 2 music generation model into your local workflows, featuring highly optimized recognition for ABC musical notation. 
-
-This extension allows creators to generate complex, high-fidelity music tracks with precise structural control by interpreting standard ABC syntax directly within the ComfyUI interface.
-
-Key Features:Yue 2 Integration: Full support for the Yue 2 music generation model, bringing advanced audio generation capabilities to your ComfyUI pipelines.
-Enhanced ABC Parsing: Upgraded ABC notation recognition algorithm that accurately interprets complex musical structures, timing, chords, and articulation.
-Seamless Workflow: Easily chain text prompts, ABC notation string inputs, and audio generation parameters into your existing visual setups.
-
-Precise Musical Control: Leverage ABC notation to dictate specific melodies and rhythms, giving you deterministic control over the AI generation process.
-
 # ComfyUI-UniversalMMH
 
 <p align="center">
@@ -27,6 +15,13 @@ Precise Musical Control: Leverage ABC notation to dictate specific melodies and 
   <a href="#automatic-duration-budget">Duration budget</a> ·
   <a href="#what-this-fork-fixes">Fork fixes</a>
 </p>
+
+## Update — 2026-11-20
+
+- Added **Auto-download | SheetSage2-Refined** to the Universal loader. Selecting it and running a workflow downloads missing model files into the first registered `audio_encoders/SheetSage2-Refined` folder.
+- Added `download_sheetsage2_refined.py` for downloading before workflow execution, with an offline `--check` option. Existing files are reused; interrupted Hub downloads can be resumed by running the command again.
+- Downloads use the tested model revision matching the pinned Refined 0.5.0 runtime, including its configured weights and license files.
+- Added **UniversalMMH · Save Audio + Player** for FLAC, MP3 and Opus, with native ComfyUI playback and an optional switch to remove embedded metadata without re-encoding the saved audio.
 
 ## Update — 2026-11-03
 
@@ -60,7 +55,7 @@ Precise Musical Control: Leverage ABC notation to dictate specific melodies and 
 - Added in-node help and clearer FL-specific loader names.
 - Updated bundled workflows to use the Universal Adapter Loader by default.
 
-Updated: 2026-11-03
+Updated: 2026-11-20
 
 ## What this is
 
@@ -124,13 +119,13 @@ Native YuE2 requires a current ComfyUI containing `YuE2 Generate ABC`, `YuE2 Gen
 
 ### 2. Install this node
 
-Clone or copy the repository into `ComfyUI/custom_nodes/ComfyUI-UniversalMMH`, then restart ComfyUI. Native mode has no additional pip dependencies:
+Clone or copy the repository into `ComfyUI/custom_nodes/ComfyUI-UniversalMMH`, then restart ComfyUI. Native mode reuses ComfyUI's ML dependencies. Install the lightweight audio metadata dependency with:
 
 ```powershell
 python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\ComfyUI-UniversalMMH\requirements.txt
 ```
 
-The command is intentionally a no-op dependency file. Do not pip-install the upstream `yue2_infer` wheel.
+The default requirements install Mutagen for audio metadata cleanup. Refined and Legacy HF runtimes remain separate options. Do not pip-install the upstream `yue2_infer` wheel.
 
 ### 3. Download the native models
 
@@ -196,6 +191,7 @@ The model menu scans `models/audio_encoders/`, `models/SheetSage2/`, and registe
 | `Native` | Comfy-Org single-file `sheetsage2_bf16.safetensors` or compatible weights | ComfyUI; no extra dependencies |
 | `SheetSage2 merged` | Merged encoder/decoder weights in the `sheetsage2_refined` runtime's format | Optional Refined runtime |
 | `Refined` | A complete folder containing `config.json` and all base, decoder, projection, and head weights it references | Optional Refined runtime |
+| `Auto-download` | Downloads missing files from the tested `anime-song/SheetSage2-Refined` snapshot when the workflow executes | Optional Refined runtime and internet access for missing files |
 | `HF` | Local snapshot with `config.json`, `modeling_sheetsage2.py`, its Python dependencies, and model weights | Legacy HF dependencies plus a complete local MERT-v2-FullSong snapshot under `models/MERT2/` |
 
 For Refined or merged models, install the optional runtime using ComfyUI's Python and restart:
@@ -204,13 +200,39 @@ For Refined or merged models, install the optional runtime using ComfyUI's Pytho
 python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\ComfyUI-UniversalMMH\requirements-sheetsage2-refined.txt
 ```
 
-Download the [SheetSage2-Refined model folder](https://huggingface.co/anime-song/SheetSage2-Refined/tree/main) separately and place the complete folder under `models/audio_encoders/SheetSage2-Refined/`. Choose `Refined | audio_encoders/SheetSage2-Refined` in the loader. Individual `heads/*.safetensors`, `decoder.safetensors`, and `bar_features.safetensors` files are components, not selectable encoders. The runtime dependency is pinned to the tested upstream 0.5.0 source; model weights have their own license.
+After installing the runtime, choose **Auto-download | SheetSage2-Refined** in the loader's `audio_encoder` menu and run the workflow. The download happens before loading the YuE2 checkpoint. A new model install is about 3 GB; an already complete model folder works offline. Opening ComfyUI or the model menu does not start a download.
 
-The Universal loader uses local models only and does not download missing weights. Native, merged, and Refined models include their encoder; only the HF adapter path needs the separate local MERT2 parent. `sheetsage_device` controls HF/merged/Refined execution (`auto`, CUDA, or CPU). Those backends unload ComfyUI models before transcription and release their own model afterward. Native uses ComfyUI's normal device and offload management. GPU presets still control the YuE2 generation models.
+You can also download the model from the portable ComfyUI directory before opening a workflow:
+
+```powershell
+python_embeded\python.exe ComfyUI\custom_nodes\ComfyUI-UniversalMMH\download_sheetsage2_refined.py
+```
+
+To check local files without downloading, add `--check`. Use `--model-dir "F:\models\audio_encoders\SheetSage2-Refined"` to choose a different destination. The CLI defaults to `ComfyUI/models/audio_encoders/SheetSage2-Refined`; the node uses the first registered audio-encoder search folder.
+
+Downloads are limited to `config.json`, its referenced safetensors, and the model's license/notice files from revision `e36ce4fc3c355e7a4e740ef1797275107b7ea257`. The downloader skips existing nonempty files and uses Hugging Face Hub's file download/resume behavior for missing files. It does not install Python packages; install the optional runtime once using the command above.
+
+For a manual install, download the [SheetSage2-Refined model folder](https://huggingface.co/anime-song/SheetSage2-Refined/tree/e36ce4fc3c355e7a4e740ef1797275107b7ea257) and place the complete folder under `models/audio_encoders/SheetSage2-Refined/`, then choose `Refined | audio_encoders/SheetSage2-Refined`. Individual `heads/*.safetensors`, `decoder.safetensors`, and `bar_features.safetensors` files are components, not selectable encoders. Model weights have their own license.
+
+All model choices except **Auto-download | SheetSage2-Refined** use local files only. Native, merged, and Refined models include their encoder; only the HF adapter path needs the separate local MERT2 parent. `sheetsage_device` controls HF/merged/Refined execution (`auto`, CUDA, or CPU). Those backends unload ComfyUI models before transcription and release their own model afterward. Native uses ComfyUI's normal device and offload management. GPU presets still control the YuE2 generation models.
 
 Refined's extended chord qualities are simplified where required by YuE2's ABC vocabulary; the console reports each reduction. SheetSage1 and GGUF are not supported by this loader.
 
 Native, merged, and Refined transcription were exercised on a 10.1-second reference WAV on an RTX 4090; Refined was checked in both melody and full modes. HF parent selection is covered by lightweight tests, but HF + MERT2 was not exercised with real weights in this integration.
+
+### Save audio with playback and metadata removal
+
+Connect an `AUDIO` output (for example VAE Decode Audio) to **UniversalMMH · Save Audio + Player**. Choose FLAC, MP3 or Opus and the corresponding quality. The node saves to ComfyUI's output folder and displays its saved audio in ComfyUI's native player.
+
+The default requirements include the lightweight metadata dependency. For an existing installation, install it directly once and restart:
+
+```powershell
+python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\ComfyUI-UniversalMMH\requirements-audio.txt
+```
+
+`remove_metadata = true` is the default. It avoids embedding the prompt/workflow and removes saved tags, comments, artist/title fields and embedded artwork. Cleanup edits metadata only and does not re-encode audio. Required audio headers, sample rate, duration and codec information remain so that the music file can be decoded and played. FLAC retains its stream description and seek information; Opus retains its required headers with an empty vendor string.
+
+Set `remove_metadata = false` to keep ComfyUI's normal prompt/workflow metadata when global metadata saving is enabled. The player serves the same output file that was saved and cleaned. The `audio` output also allows the audio to continue into another node.
 
 ## First generation
 
@@ -228,6 +250,7 @@ Importable native workflows:
 | [`YuE2_Native_Text_to_Song_Simple_LoRA.json`](./example_workflows/YuE2_Native_Text_to_Song_Simple_LoRA.json) | Simpler Native text-to-song graph with shared Mode and Universal Adapter controls. |
 | [`YuE2_Native_Reference_Remix.json`](./example_workflows/YuE2_Native_Reference_Remix.json) | Native SheetSage2 remix with ABC edits and an automatic duration ceiling. |
 | [`YuE2_Universal_Reference_Remix.json`](./example_workflows/YuE2_Universal_Reference_Remix.json) | Same cover pipeline with the Universal SheetSage2 selector; defaults to Native and can select a complete Refined folder. |
+| [`UniversalMMH_Refined_AutoSave.json`](./example_workflows/UniversalMMH_Refined_AutoSave.json) | Refined auto-download plus Save Audio + Player, with metadata removal enabled. Requires the Refined runtime and the default audio metadata dependency. |
 | [`YuE2_Reference_Remix.json`](./example_workflows/YuE2_Reference_Remix.json) | Legacy HF remix with a semantic-token duration override. |
 | [`YuE2_Text_to_Song.json`](./example_workflows/YuE2_Text_to_Song.json) | Staged Legacy planning: Plan → ABC Duration Budget → Render settings → RenderPlan. |
 | [`YuE2_Text_to_Song_Simple_LoRA.json`](./example_workflows/YuE2_Text_to_Song_Simple_LoRA.json) | Simpler Legacy graph with a shared Mode/COT control. |
@@ -254,6 +277,7 @@ Legacy HF SheetSage2 output uses ComfyUI's current key-aware spelling helper bef
 | --- | --- |
 | **UniversalMMH · YuE2 Native Pipeline Loader (ComfyUI)** | Loads official model files and returns a lightweight native pipe plus standard `MODEL`, `CLIP`, `VAE`, and optional `AUDIO_ENCODER` outputs. |
 | **UniversalMMH · YuE2 Universal Pipeline Loader (SheetSage2)** | Chooses Native, merged, local HF + MERT2, or complete Refined models while preserving the native pipeline outputs. |
+| **UniversalMMH · Save Audio + Player** | Saves FLAC, MP3 or Opus, shows the native audio player, and optionally removes embedded metadata without re-encoding. |
 | **UniversalMMH · YuE2 Native Pipe Components** | Unpacks a native pipe for connection to stock ComfyUI nodes. |
 | **UniversalMMH · YuE2 Native Generate ABC** | Generates an editable ABC plan using the pipe's native CLIP and the stock sampling controls. |
 | **UniversalMMH · YuE2 Native Generate Music** | Returns native conditioning, duration, MODEL, and VAE for the stock sampler/decode path. |

@@ -1,0 +1,3 @@
+# Pure-Python tag cleanup (included by the default requirements) for UniversalMMH Save Audio + Player.
+# Audio encoding and playback use ComfyUI's existing PyAV/audio implementation.
+mutagen==1.48.1

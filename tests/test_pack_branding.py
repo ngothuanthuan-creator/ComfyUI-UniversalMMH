@@ -8,7 +8,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = ("comfy_native", "sheetsage_universal", "yue2_lora", "yue2", "yue2_advanced", "sheetsage2", "abc_tools")
+MODULES = ("comfy_native", "sheetsage_universal", "audio_save", "yue2_lora", "yue2", "yue2_advanced", "sheetsage2", "abc_tools")
 
 
 @pytest.fixture

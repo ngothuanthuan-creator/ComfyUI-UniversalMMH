@@ -116,7 +116,7 @@ def test_discovery_groups_refined_heads_and_skips_invalid_or_cached_files(univer
 def test_schema_retains_native_ports_and_handles_nested_checkpoint_names(universal):
     schema = universal.YuE2UniversalPipelineLoader.INPUT_TYPES()
     assert schema["required"]["checkpoint"][1]["default"] == "YuE2/yue2_3b_int8_convrot.safetensors"
-    assert schema["required"]["audio_encoder"][0] == ["none"]
+    assert schema["required"]["audio_encoder"][0] == ["none", universal._AUTO_REFINED]
     assert universal.YuE2UniversalPipelineLoader.RETURN_TYPES == universal.YuE2NativePipelineLoader.RETURN_TYPES
     assert "YuE2UniversalPipelineLoader" in universal.NODE_CLASS_MAPPINGS
 
@@ -146,6 +146,21 @@ def test_optional_import_failure_explains_installation(universal, comfy_modules,
     with pytest.raises(RuntimeError, match="requirements-sheetsage2-refined.txt"):
         universal.YuE2UniversalPipelineLoader().load("checkpoint", next(iter(universal._models())))
     comfy_modules["comfy.sd"].load_checkpoint_guess_config.assert_not_called()
+
+
+def test_auto_download_choice_works_without_an_installed_model(universal, comfy_modules, refined_modules, monkeypatch):
+    downloader = types.ModuleType("_universal_sheetsage_tests.models.sheetsage_download")
+    root = universal.test_roots["audio_encoders"]
+    target = root / "SheetSage2-Refined"
+    downloader.download_refined_model = mock.Mock(return_value=target)
+    monkeypatch.setitem(sys.modules, downloader.__name__, downloader)
+    monkeypatch.setattr(universal, "_validate_refined", mock.Mock())
+    pipe, _model, _clip, _vae, encoder = universal.YuE2UniversalPipelineLoader().load(
+        "checkpoint", universal._AUTO_REFINED
+    )
+    downloader.download_refined_model.assert_called_once_with(target)
+    assert encoder.kind == "refined"
+    assert pipe["audio_encoder_name"] == universal._AUTO_REFINED
 
 
 def test_refined_missing_files_and_path_escape_are_reported(universal, refined_modules):

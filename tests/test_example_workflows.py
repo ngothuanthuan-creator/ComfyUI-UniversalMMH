@@ -12,6 +12,7 @@ WORKFLOW_FILES = (
     "YuE2_Native_Text_to_Song.json",
     "YuE2_Native_Reference_Remix.json",
     "YuE2_Universal_Reference_Remix.json",
+    "UniversalMMH_Refined_AutoSave.json",
     "YuE2_Reference_Remix.json",
     "YuE2_Text_to_Song_Simple_LoRA.json",
     "YuE2_Text_to_Song.json",
@@ -324,3 +325,16 @@ def test_universal_remix_uses_grouped_model_selector_and_native_pipeline_ports()
     assert outer["widgets_values_named"]["audio_encoder_name"] == loader["widgets_values_named"]["audio_encoder"]
     assert outer["widgets_values_named"]["audio_encoder_name"].startswith("Native | audio_encoders/")
     assert_native_duration(subgraph)
+
+
+def test_refined_autosave_example_downloads_and_cleans_saved_audio():
+    data = read_workflow("UniversalMMH_Refined_AutoSave.json")
+    graph = data["definitions"]["subgraphs"][0]
+    loader = node_by_type(graph, "YuE2UniversalPipelineLoader")
+    assert loader["widgets_values_named"]["audio_encoder"] == "Auto-download | SheetSage2-Refined"
+    outer = next(node for node in data["nodes"] if node["type"] == graph["id"])
+    assert outer["widgets_values_named"]["audio_encoder_name"] == loader["widgets_values_named"]["audio_encoder"]
+    saver = node_by_type(data, "UniversalMMHSaveAudio")
+    assert saver["widgets_values_named"]["remove_metadata"] is True
+    assert saver["outputs"][0]["type"] == "AUDIO"
+    assert_native_duration(graph)
